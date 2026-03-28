@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>キクタンbasic 単語アプリ</title>
+  <!-- Tailwind CSSを読み込み（デザインを整えるため） -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* ふわっと表示させるためのアニメーション */
+    .fade-in { animation: fadeIn 0.3s ease-in; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  </style>
+</head>
+<body class="bg-slate-100 flex items-center justify-center min-h-screen p-4 font-sans text-slate-800">
+
+  <!-- アプリのメインカード -->
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 text-center flex flex-col justify-between min-h-[400px]">
+    
+    <!-- ヘッダー部分（タイトルと進捗） -->
+    <div>
+      <h1 class="text-xl font-bold text-slate-500 mb-2">キクタンbasic</h1>
+      <p class="text-sm text-slate-400 mb-8" id="progress">- / -</p>
+    </div>
+
+    <!-- 単語カード部分 -->
+    <div class="flex-grow flex flex-col justify-center items-center mb-8">
+      <div id="word" class="text-4xl font-extrabold mb-6 tracking-wide text-slate-800">読み込み中...</div>
+      <div id="meaning" class="text-2xl font-bold text-red-500 hidden fade-in"></div>
+    </div>
+
+    <!-- ボタン部分 -->
+    <div class="flex flex-col gap-3">
+      <button id="showBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-4 px-6 rounded-xl transition-colors w-full shadow-sm text-lg disabled:opacity-50 disabled:cursor-not-allowed">
+        意味を見る
+      </button>
+      <button id="nextBtn" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 px-6 rounded-xl transition-colors w-full shadow-sm text-lg hidden">
+        次の単語へ
+      </button>
+    </div>
+
+  </div>
+
+  <script>
+    // ==========================================
+    // ★ 先生が作成したGASのURLをここに貼り付けます ★
+    // 例: const GAS_URL = 'https://script.google.com/macros/s/XXXXX/exec';
+    // ==========================================
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbz9w9cL2jmyHwWk-rHO080nb2fV11_FH_iCCv8BuM_0GPu2sfgBldIzW4GBOHWdHnBU/exec'; 
+
+    // デモ用のデータ（URLが空の場合に表示されます）
+    const mockData = [
+      { word: "vocabulary", meaning: "語彙" },
+      { word: "environment", meaning: "環境" },
+      { word: "government", meaning: "政府" },
+      { word: "knowledge", meaning: "知識" },
+      { word: "opportunity", meaning: "機会" }
+    ];
+
+    let words = [];
+    let currentIndex = 0;
+
+    // HTMLの要素を取得
+    const wordEl = document.getElementById('word');
+    const meaningEl = document.getElementById('meaning');
+    const showBtn = document.getElementById('showBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const progressEl = document.getElementById('progress');
+
+    // アプリの初期化
+    async function initApp() {
+      if (GAS_URL === '') {
+        // GAS_URLが空の場合はデモデータを使用
+        setupWords(mockData);
+      } else {
+        try {
+          // スプレッドシート（GAS）からデータを取得
+          const response = await fetch(GAS_URL);
+          const data = await response.json();
+          setupWords(data);
+        } catch (error) {
+          wordEl.textContent = "読み込みエラー";
+          meaningEl.textContent = "URLの設定、またはネット接続を確認してください";
+          meaningEl.classList.remove('hidden');
+          meaningEl.classList.add('text-slate-500', 'text-sm');
+          showBtn.disabled = true;
+        }
+      }
+    }
+
+    // 単語データの設定とシャッフル
+    function setupWords(data) {
+      words = [...data];
+      shuffleArray(words);
+      currentIndex = 0;
+      showCurrentWord();
+    }
+
+    // 配列をシャッフルする関数（ランダム出題用）
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    // 現在の単語を表示
+    function showCurrentWord() {
+      if (words.length === 0) return;
+      
+      const currentWord = words[currentIndex];
+      wordEl.textContent = currentWord.word;
+      meaningEl.textContent = currentWord.meaning;
+      
+      // 表示のリセット（意味を隠して、ボタンを切り替え）
+      meaningEl.classList.add('hidden');
+      showBtn.classList.remove('hidden');
+      nextBtn.classList.add('hidden');
+      
+      // 進捗の更新（例： 3 / 50）
+      progressEl.textContent = `${currentIndex + 1} / ${words.length}`;
+    }
+
+    // 「意味を見る」ボタンの処理
+    showBtn.addEventListener('click', () => {
+      meaningEl.classList.remove('hidden');
+      showBtn.classList.add('hidden');
+      nextBtn.classList.remove('hidden');
+    });
+
+    // 「次の単語へ」ボタンの処理
+    nextBtn.addEventListener('click', () => {
+      currentIndex++;
+      
+      if (currentIndex >= words.length) {
+        // 一周したら再度シャッフルして最初から
+        shuffleArray(words);
+        currentIndex = 0;
+        
+        // 1周終わったことの通知（画面上部に一瞬表示）
+        const toast = document.createElement('div');
+        toast.className = 'fixed top-4 bg-slate-800 text-white px-6 py-3 rounded-full shadow-lg fade-in z-50 text-sm';
+        toast.textContent = '1周終わりました！シャッフルして繰り返します。';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000); // 3秒後に消える
+      }
+      
+      showCurrentWord();
+    });
+
+    // アプリを起動
+    initApp();
+  </script>
+</body>
+</html>
