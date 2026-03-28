@@ -55,7 +55,7 @@
     </div>
 
     <!-- 画面2: リスト（単語一覧）画面 -->
-    <div id="list-screen" class="screen hidden flex flex-col h-full fade-in">
+    <div id="list-screen" class="screen hidden flex flex-col h-full fade-in relative">
       <div class="bg-blue-600 text-white p-4 flex items-center justify-between shadow-md z-10">
         <button onclick="showScreen('home-screen')" class="p-2 hover:bg-blue-700 rounded-lg transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
@@ -66,8 +66,8 @@
       
       <!-- ボタンエリア -->
       <div class="p-3 bg-white border-b border-slate-200 grid grid-cols-2 gap-2 shadow-sm z-10">
-        <button id="start-quiz-btn" onclick="startQuiz()" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-2 rounded-lg shadow text-sm transition-colors flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
-          ✍️ 練習 (△/×)
+        <button id="start-quiz-btn" onclick="openQuizTargetModal()" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-2 rounded-lg shadow text-sm transition-colors flex items-center justify-center gap-1">
+          ✍️ 練習メニュー
         </button>
         <button onclick="startVsMode()" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-2 rounded-lg shadow text-sm transition-colors flex items-center justify-center gap-1">
           ⚔️ 対戦 (5問)
@@ -126,6 +126,33 @@
       </div>
     </div>
 
+    <!-- モーダル1: 練習対象選択 -->
+    <div id="quiz-target-modal" class="hidden absolute inset-0 bg-slate-900/60 z-50 flex items-center justify-center fade-in px-4">
+      <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm">
+        <h3 class="text-lg font-bold mb-4 text-center text-slate-700">練習する対象を選択</h3>
+        <div class="space-y-3">
+          <button id="btn-target-tx" onclick="startQuiz(['triangle', 'cross'])" class="w-full py-3 bg-red-50 text-red-700 border border-red-200 rounded-xl font-bold hover:bg-red-100 transition-colors">△ と ×</button>
+          <button id="btn-target-ctx" onclick="startQuiz(['circle', 'triangle', 'cross'])" class="w-full py-3 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl font-bold hover:bg-blue-100 transition-colors">◯ と △ と ×</button>
+          <button id="btn-target-all" onclick="startQuiz(['double-circle', 'circle', 'triangle', 'cross', 'none'])" class="w-full py-3 bg-purple-50 text-purple-700 border border-purple-200 rounded-xl font-bold hover:bg-purple-100 transition-colors">すべて</button>
+        </div>
+        <button onclick="closeQuizTargetModal()" class="mt-4 w-full py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors">キャンセル</button>
+      </div>
+    </div>
+
+    <!-- モーダル2: 単語詳細ポップアップ (スマホでの確認用) -->
+    <div id="word-detail-modal" class="hidden absolute inset-0 bg-slate-900/60 z-50 flex items-center justify-center fade-in px-4" onclick="closeWordDetailModal(event)">
+      <div class="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-xs text-center relative" onclick="event.stopPropagation()">
+        <button onclick="closeWordDetailModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full p-1">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+        <button onclick="replayAudio()" class="mx-auto bg-blue-100 text-blue-500 rounded-full p-5 mb-6 hover:bg-blue-200 transition-transform active:scale-95">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>
+        </button>
+        <div id="detail-word" class="text-4xl font-extrabold text-slate-800 mb-4 tracking-wide">word</div>
+        <div id="detail-meaning" class="text-xl font-bold text-slate-600">意味</div>
+      </div>
+    </div>
+
   </div>
 
   <script>
@@ -142,17 +169,18 @@
     let quizQueue = []; 
     let currentQuizIndex = 0; 
     let currentSpeakingWord = "";
+    let quizWrongCount = 0; // その問題での間違い回数
 
     // ローカルストレージのキー
-    const STORAGE_KEY = 'kikutan_progress_v2'; // キーを変更してデータ構造をリセット
+    const STORAGE_KEY = 'kikutan_progress_v2';
 
     // 音声読み上げ機能
     function speakWord(text) {
       if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel(); // 連続再生を防止
+        window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'en-US';
-        utterance.rate = 0.9; // 少しゆっくりめに発音
+        utterance.rate = 0.9;
         window.speechSynthesis.speak(utterance);
         currentSpeakingWord = text;
       }
@@ -199,7 +227,7 @@
 
     function saveProgress(word, status) {
       const progress = loadProgress();
-      progress[word] = status; // 'double-circle', 'circle', 'triangle', 'cross', 'none'
+      progress[word] = status; 
       if (status === 'none') delete progress[word];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
     }
@@ -207,6 +235,56 @@
     function getWordsForPart(partIndex) {
       const start = partIndex * WORDS_PER_PART;
       return globalWords.slice(start, start + WORDS_PER_PART);
+    }
+
+    // --- モーダル制御 ---
+    function openQuizTargetModal() {
+      const partWords = getWordsForPart(currentPartIndex);
+      const progressData = loadProgress();
+      
+      let countTx = 0; // △, ×
+      let countCtx = 0; // ◯, △, ×
+      let countAll = partWords.length;
+      
+      partWords.forEach(w => {
+        const st = progressData[w.word] || 'none';
+        if (st === 'triangle' || st === 'cross') countTx++;
+        if (st === 'circle' || st === 'triangle' || st === 'cross') countCtx++;
+      });
+      
+      document.getElementById('btn-target-tx').textContent = `△ と × (${countTx}語)`;
+      document.getElementById('btn-target-ctx').textContent = `◯ と △ と × (${countCtx}語)`;
+      document.getElementById('btn-target-all').textContent = `すべて (${countAll}語)`;
+      
+      document.getElementById('btn-target-tx').disabled = (countTx === 0);
+      document.getElementById('btn-target-ctx').disabled = (countCtx === 0);
+      
+      document.querySelectorAll('#quiz-target-modal button[id^="btn-target-"]').forEach(btn => {
+         if(btn.disabled) {
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+         } else {
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+         }
+      });
+
+      document.getElementById('quiz-target-modal').classList.remove('hidden');
+    }
+    
+    function closeQuizTargetModal() {
+      document.getElementById('quiz-target-modal').classList.add('hidden');
+    }
+
+    function openWordDetail(word, meaning) {
+      currentSpeakingWord = word;
+      document.getElementById('detail-word').textContent = word;
+      document.getElementById('detail-meaning').textContent = meaning;
+      document.getElementById('word-detail-modal').classList.remove('hidden');
+      speakWord(word); // ポップアップが開いたら発音
+    }
+
+    function closeWordDetailModal(e) {
+      if (e) e.stopPropagation();
+      document.getElementById('word-detail-modal').classList.add('hidden');
     }
 
     // --- 画面レンダリング ---
@@ -227,7 +305,6 @@
         const partWords = getWordsForPart(i);
         if (partWords.length === 0) continue;
 
-        // ◎と◯を「覚えた」としてカウント
         let learnedCount = 0;
         partWords.forEach(w => {
           if (progressData[w.word] === 'circle' || progressData[w.word] === 'double-circle') learnedCount++;
@@ -264,31 +341,22 @@
       showScreen('list-screen');
     }
 
-    // 単語リスト画面（1行コンパクト表示）
+    // 単語リスト画面
     function renderWordList() {
       const container = document.getElementById('word-list');
       container.innerHTML = '';
       const partWords = getWordsForPart(currentPartIndex);
       const progressData = loadProgress();
 
-      // クイズ開始ボタンの状態更新
-      const targetsForQuiz = partWords.filter(w => {
-        const status = progressData[w.word];
-        return status === 'triangle' || status === 'cross';
-      });
-      const startBtn = document.getElementById('start-quiz-btn');
-      startBtn.disabled = targetsForQuiz.length === 0;
-      startBtn.innerHTML = targetsForQuiz.length > 0 ? `✍️ 練習 (${targetsForQuiz.length}問)` : `✍️ 練習 (対象なし)`;
-
       partWords.forEach((wordObj, index) => {
         const currentStatus = progressData[wordObj.word] || 'none';
         const globalIndex = currentPartIndex * WORDS_PER_PART + index + 1;
         const escapedWord = wordObj.word.replace(/'/g, "\\'");
+        const escapedMeaning = wordObj.meaning.replace(/'/g, "\\'");
         
         const row = document.createElement('div');
         row.className = "list-row hover:bg-blue-50 transition-colors";
         
-        // 4種類のステータスボタン生成
         const createBtn = (mark, statusVal, colorClass, selectedClass) => {
           const isSelected = currentStatus === statusVal;
           const baseClass = "status-btn w-7 h-7 flex items-center justify-center rounded border font-bold text-xs transition-colors shrink-0";
@@ -296,11 +364,12 @@
           return `<button onclick="updateStatus('${escapedWord}', '${statusVal}')" class="${classes}">${mark}</button>`;
         };
 
+        // 単語部分をクリッカブルにしてポップアップを呼び出す
         row.innerHTML = `
-          <div class="flex items-center gap-2 overflow-hidden flex-1 pl-1">
+          <div class="flex items-center gap-2 overflow-hidden flex-1 pl-1 cursor-pointer group" onclick="openWordDetail('${escapedWord}', '${escapedMeaning}')">
             <span class="text-[10px] text-slate-400 w-5 shrink-0 text-right">${globalIndex}</span>
-            <button onclick="speakWord('${escapedWord}')" class="text-blue-500 hover:text-blue-700 bg-blue-100 rounded-full w-6 h-6 flex items-center justify-center shrink-0">🔊</button>
-            <span class="font-bold text-slate-800 text-sm sm:text-base shrink-0">${wordObj.word}</span>
+            <button onclick="event.stopPropagation(); speakWord('${escapedWord}')" class="text-blue-500 hover:text-blue-700 bg-blue-100 rounded-full w-6 h-6 flex items-center justify-center shrink-0 transition-transform active:scale-90">🔊</button>
+            <span class="font-bold text-slate-800 text-sm sm:text-base shrink-0 group-hover:text-blue-600 transition-colors">${wordObj.word}</span>
             <span class="text-xs text-slate-500 truncate ml-1">${wordObj.meaning}</span>
           </div>
           <div class="flex gap-1 shrink-0 pr-1">
@@ -314,7 +383,6 @@
       });
     }
 
-    // ステータス更新
     function updateStatus(word, newStatus) {
       const progress = loadProgress();
       const current = progress[word] || 'none';
@@ -324,19 +392,20 @@
     }
 
     // --- クイズ（練習問題）ロジック ---
-    function startQuiz() {
+    function startQuiz(targetStatuses) {
+      closeQuizTargetModal();
       const partWords = getWordsForPart(currentPartIndex);
       const progressData = loadProgress();
       
       let targets = partWords.filter(w => {
-        const status = progressData[w.word];
-        return status === 'triangle' || status === 'cross';
+        const status = progressData[w.word] || 'none';
+        return targetStatuses.includes(status);
       });
 
       if (targets.length === 0) return;
 
       targets.sort(() => Math.random() - 0.5);
-      quizQueue = targets.slice(0, QUIZ_COUNT);
+      quizQueue = targets.slice(0, Math.min(QUIZ_COUNT, targets.length));
       currentQuizIndex = 0;
 
       showScreen('quiz-screen');
@@ -344,11 +413,11 @@
     }
 
     function renderQuiz() {
+      quizWrongCount = 0; // 問題ごとの間違い回数をリセット
       const question = quizQueue[currentQuizIndex];
       document.getElementById('quiz-progress').textContent = `${currentQuizIndex + 1} / ${quizQueue.length}`;
       document.getElementById('quiz-word').textContent = question.word;
 
-      // 自動で発音を流す
       setTimeout(() => speakWord(question.word), 300);
 
       const options = new Set();
@@ -371,43 +440,85 @@
     }
 
     function handleQuizAnswer(isCorrect, word, clickedBtn) {
-      document.querySelectorAll('#quiz-options button').forEach(b => b.disabled = true);
+      const optionsButtons = document.querySelectorAll('#quiz-options button');
       const feedbackEl = document.getElementById('quiz-feedback');
       const iconEl = document.getElementById('feedback-icon');
 
       if (isCorrect) {
+        // 正解の処理
+        optionsButtons.forEach(b => b.disabled = true);
         clickedBtn.classList.replace('bg-white', 'bg-emerald-500');
         clickedBtn.classList.replace('text-slate-700', 'text-white');
+        clickedBtn.classList.replace('border-slate-200', 'border-emerald-500');
         iconEl.textContent = '◯';
         iconEl.className = 'text-9xl font-bold drop-shadow-lg text-emerald-500';
         
-        // 正解時の昇格ロジック (× -> △ -> ◯ -> ◎)
-        const progress = loadProgress();
-        const current = progress[word] || 'none';
-        let nextStatus = 'circle'; // デフォルト
-        if (current === 'cross') nextStatus = 'triangle';
-        else if (current === 'triangle') nextStatus = 'circle';
-        else if (current === 'circle') nextStatus = 'double-circle';
-        else if (current === 'double-circle') nextStatus = 'double-circle';
-        saveProgress(word, nextStatus);
+        // 1発正解の場合のみ評価を昇格させる
+        if (quizWrongCount === 0) {
+          const progress = loadProgress();
+          const current = progress[word] || 'none';
+          let nextStatus = 'circle'; 
+          if (current === 'cross') nextStatus = 'triangle';
+          else if (current === 'triangle') nextStatus = 'circle';
+          else if (current === 'circle' || current === 'double-circle') nextStatus = 'double-circle';
+          saveProgress(word, nextStatus);
+        }
+
+        feedbackEl.classList.remove('opacity-0');
+        setTimeout(() => {
+          feedbackEl.classList.add('opacity-0');
+          nextQuizQuestion();
+        }, 1000);
+
       } else {
-        clickedBtn.classList.replace('bg-white', 'bg-red-500');
-        clickedBtn.classList.replace('text-slate-700', 'text-white');
+        // 不正解の処理
+        quizWrongCount++;
+        clickedBtn.disabled = true;
+        
+        // 1回間違えた選択肢はグレーアウトして3択に
+        clickedBtn.classList.replace('bg-white', 'bg-slate-100');
+        clickedBtn.classList.replace('text-slate-700', 'text-slate-400');
+        
         iconEl.textContent = '×';
         iconEl.className = 'text-9xl font-bold drop-shadow-lg text-red-500';
-      }
+        feedbackEl.classList.remove('opacity-0');
+        
+        if (quizWrongCount >= 2) {
+          // 2回間違えた場合（強制終了＆正解を赤で表示）
+          optionsButtons.forEach(b => b.disabled = true);
+          
+          const question = quizQueue[currentQuizIndex];
+          optionsButtons.forEach(b => {
+            if (b.textContent === question.meaning) {
+              b.classList.replace('bg-white', 'bg-red-500');
+              b.classList.replace('text-slate-700', 'text-white');
+              b.classList.replace('border-slate-200', 'border-red-500');
+            }
+          });
+          
+          // 2回間違えたら強制的に「×」に降格
+          saveProgress(word, 'cross');
 
-      feedbackEl.classList.remove('opacity-0');
-      
-      setTimeout(() => {
-        feedbackEl.classList.add('opacity-0');
-        currentQuizIndex++;
-        if (currentQuizIndex < quizQueue.length) {
-          renderQuiz();
+          setTimeout(() => {
+            feedbackEl.classList.add('opacity-0');
+            setTimeout(nextQuizQuestion, 1200); // 正解を少し見せてから次へ
+          }, 1000);
         } else {
-          endQuiz();
+          // 1回目の間違い：少し経ったら×を消して再挑戦させる
+          setTimeout(() => {
+            feedbackEl.classList.add('opacity-0');
+          }, 600);
         }
-      }, 1000);
+      }
+    }
+
+    function nextQuizQuestion() {
+      currentQuizIndex++;
+      if (currentQuizIndex < quizQueue.length) {
+        renderQuiz();
+      } else {
+        endQuiz();
+      }
     }
 
     function endQuiz() {
@@ -444,7 +555,6 @@
       vsActive = true;
       const question = vsQueue[vsCurrentIndex];
 
-      // 共通の選択肢を生成
       const options = new Set();
       options.add(question.meaning);
       while(options.size < 4) {
@@ -452,7 +562,6 @@
       }
       const shuffledOptions = Array.from(options).sort(() => Math.random() - 0.5);
 
-      // P1 (下側) レンダリング
       const p1Container = document.getElementById('p1-options');
       p1Container.innerHTML = '';
       shuffledOptions.forEach(opt => {
@@ -463,7 +572,6 @@
           p1Container.appendChild(btn);
       });
 
-      // P2 (上側) レンダリング
       const p2Container = document.getElementById('p2-options');
       p2Container.innerHTML = '';
       shuffledOptions.forEach(opt => {
@@ -474,7 +582,6 @@
           p2Container.appendChild(btn);
       });
 
-      // 自動発音
       setTimeout(() => speakWord(question.word), 600);
     }
 
@@ -482,7 +589,7 @@
       if (!vsActive) return;
 
       if (isCorrect) {
-          vsActive = false; // 先押し判定！
+          vsActive = false; 
           btn.classList.replace('bg-white', 'bg-green-500');
           btn.classList.add('text-white');
           
@@ -503,7 +610,6 @@
               }
           }, 1200);
       } else {
-          // お手つき処理（ボタンをグレーアウトして押せなくする）
           btn.classList.replace('bg-white', 'bg-slate-300');
           btn.classList.add('opacity-50');
           btn.disabled = true;
@@ -521,7 +627,6 @@
       showScreen('list-screen');
     }
 
-    // アプリ起動
     initApp();
 
   </script>
