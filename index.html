@@ -9,22 +9,33 @@
     .fade-in { animation: fadeIn 0.3s ease-in; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     
-    /* ◯△×ボタンの選択状態の色 */
+    /* ◎◯△×ボタンの選択状態の色 */
+    .status-btn.selected-double-circle { background-color: #8b5cf6; color: white; border-color: #8b5cf6; } /* Purple */
     .status-btn.selected-circle { background-color: #3b82f6; color: white; border-color: #3b82f6; } /* Blue */
     .status-btn.selected-triangle { background-color: #eab308; color: white; border-color: #eab308; } /* Yellow */
     .status-btn.selected-cross { background-color: #ef4444; color: white; border-color: #ef4444; } /* Red */
     
-    /* カスタムスクロールバー（リスト用） */
-    ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    /* カスタムスクロールバー */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f1f1; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    
+    /* 1行リストのレイアウト用 */
+    .list-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.75rem 0.5rem;
+      border-bottom: 1px solid #e2e8f0;
+      background-color: white;
+    }
   </style>
 </head>
 <body class="bg-slate-100 flex justify-center min-h-screen font-sans text-slate-800">
 
   <!-- アプリのメインコンテナ -->
-  <div class="bg-white w-full max-w-md shadow-xl flex flex-col relative h-screen sm:h-auto sm:min-h-[600px] sm:my-8 sm:rounded-2xl overflow-hidden">
+  <div class="bg-white w-full max-w-md shadow-xl flex flex-col relative h-[100dvh] sm:h-auto sm:min-h-[700px] sm:my-8 sm:rounded-2xl overflow-hidden">
     
     <!-- ローディング表示 -->
     <div id="loading-screen" class="absolute inset-0 bg-white z-50 flex flex-col items-center justify-center">
@@ -46,23 +57,25 @@
     <!-- 画面2: リスト（単語一覧）画面 -->
     <div id="list-screen" class="screen hidden flex flex-col h-full fade-in">
       <div class="bg-blue-600 text-white p-4 flex items-center justify-between shadow-md z-10">
-        <!-- 修正箇所: 'home' ではなく 'home-screen' を指定 -->
         <button onclick="showScreen('home-screen')" class="p-2 hover:bg-blue-700 rounded-lg transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
         </button>
         <h2 id="list-title" class="text-lg font-bold">Part X</h2>
-        <div class="w-10"></div> <!-- バランス用 -->
+        <div class="w-10"></div>
       </div>
       
-      <div class="p-4 bg-white border-b border-slate-200">
-        <button id="start-quiz-btn" onclick="startQuiz()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl shadow transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /></svg>
-          練習問題 (△/×から10問)
+      <!-- ボタンエリア -->
+      <div class="p-3 bg-white border-b border-slate-200 grid grid-cols-2 gap-2 shadow-sm z-10">
+        <button id="start-quiz-btn" onclick="startQuiz()" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-2 rounded-lg shadow text-sm transition-colors flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
+          ✍️ 練習 (△/×)
+        </button>
+        <button onclick="startVsMode()" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-2 rounded-lg shadow text-sm transition-colors flex items-center justify-center gap-1">
+          ⚔️ 対戦 (5問)
         </button>
       </div>
 
-      <div id="word-list" class="flex-1 overflow-y-auto p-2 pb-20 bg-slate-50 space-y-2">
-        <!-- 単語リストがここにJSで生成されます -->
+      <div id="word-list" class="flex-1 overflow-y-auto bg-slate-50 pb-20">
+        <!-- 1行の単語リストがここにJSで生成されます -->
       </div>
     </div>
 
@@ -71,20 +84,45 @@
       <div class="p-4 flex items-center justify-between z-10">
         <button onclick="endQuiz()" class="text-slate-500 hover:bg-slate-200 p-2 rounded-lg font-bold text-sm transition-colors">中断</button>
         <div id="quiz-progress" class="text-slate-500 font-bold bg-white px-4 py-1 rounded-full shadow-sm text-sm">1 / 10</div>
-        <div class="w-12"></div> <!-- バランス用 -->
+        <button onclick="replayAudio()" class="text-blue-500 hover:bg-blue-100 p-2 rounded-lg transition-colors" title="音声をもう一度聞く">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>
+        </button>
       </div>
 
       <div class="flex-1 flex flex-col justify-center items-center p-6 mb-8">
         <div id="quiz-word" class="text-5xl font-extrabold text-slate-800 mb-8 text-center tracking-wide">word</div>
-        
         <div id="quiz-options" class="w-full space-y-3">
           <!-- 選択肢がここにJSで生成されます -->
         </div>
       </div>
       
-      <!-- クイズ結果のフィードバックオーバーレイ（正解/不正解時の丸バツ表示） -->
+      <!-- クイズ結果のフィードバック -->
       <div id="quiz-feedback" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-300 z-50">
         <div id="feedback-icon" class="text-9xl font-bold drop-shadow-lg"></div>
+      </div>
+    </div>
+
+    <!-- 画面4: 対戦モード (VS画面) -->
+    <div id="vs-screen" class="screen hidden absolute inset-0 bg-slate-900 z-50 flex flex-col fade-in overflow-hidden">
+      <!-- Player 2 (上側・180度回転) -->
+      <div class="flex-1 bg-red-50 relative flex flex-col items-center justify-center p-4 rotate-180">
+        <div class="absolute top-4 left-4 font-bold text-red-800 text-lg">P2 Score: <span id="p2-score">0</span></div>
+        <div id="p2-options" class="grid grid-cols-2 gap-3 w-full max-w-sm"></div>
+      </div>
+      
+      <!-- 中央セパレーター -->
+      <div class="h-14 bg-slate-800 flex items-center justify-between px-4 relative z-10 border-y-4 border-slate-900">
+        <button onclick="endVsMode()" class="text-xs text-white bg-slate-600 px-3 py-1 rounded">終了</button>
+        <button onclick="replayAudio()" class="bg-blue-500 text-white rounded-full p-3 shadow-lg absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2 top-1/2 active:scale-95 transition-transform">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>
+        </button>
+        <div class="text-xs text-white font-bold">VS MODE</div>
+      </div>
+
+      <!-- Player 1 (下側・通常) -->
+      <div class="flex-1 bg-blue-50 relative flex flex-col items-center justify-center p-4">
+        <div class="absolute top-4 left-4 font-bold text-blue-800 text-lg">P1 Score: <span id="p1-score">0</span></div>
+        <div id="p1-options" class="grid grid-cols-2 gap-3 w-full max-w-sm"></div>
       </div>
     </div>
 
@@ -99,26 +137,39 @@
     const WORDS_PER_PART = 100;
     const QUIZ_COUNT = 10;
     
-    let globalWords = []; // 全単語データ
-    let currentPartIndex = 0; // 選択中のPart (0〜)
-    let quizQueue = []; // 現在のクイズの問題配列
-    let currentQuizIndex = 0; // クイズの現在の問題番号
+    let globalWords = []; 
+    let currentPartIndex = 0; 
+    let quizQueue = []; 
+    let currentQuizIndex = 0; 
+    let currentSpeakingWord = "";
 
     // ローカルストレージのキー
-    const STORAGE_KEY = 'kikutan_progress';
+    const STORAGE_KEY = 'kikutan_progress_v2'; // キーを変更してデータ構造をリセット
+
+    // 音声読み上げ機能
+    function speakWord(text) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel(); // 連続再生を防止
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.9; // 少しゆっくりめに発音
+        window.speechSynthesis.speak(utterance);
+        currentSpeakingWord = text;
+      }
+    }
+
+    function replayAudio() {
+      if(currentSpeakingWord) speakWord(currentSpeakingWord);
+    }
 
     // アプリ初期化
     async function initApp() {
       try {
         const response = await fetch(GAS_URL);
         const rawData = await response.json();
-        
-        // 改善点：スプレッドシートの空白行が混ざった場合にエラーにならないよう除外する
         const data = rawData.filter(item => item && item.word && item.word.toString().trim() !== '');
         
-        // GASのデータが少ない場合（テスト時など）は、1200個になるようにダミーデータを追加
         if (data.length < 100) {
-           console.warn("データが少ないため、テスト用のダミーデータを生成します。");
            const dummyData = Array.from({length: 1200}, (_, i) => ({
              word: data[i % data.length]?.word + `_${i+1}` || `word_${i+1}`,
              meaning: data[i % data.length]?.meaning + `_${i+1}` || `意味_${i+1}`
@@ -130,70 +181,58 @@
         
         renderHome();
         document.getElementById('loading-screen').classList.add('hidden');
-        
-        // 修正箇所: 'home' ではなく 'home-screen' を指定
         showScreen('home-screen');
-        
       } catch (error) {
         console.error("データの読み込みに失敗しました:", error);
         document.getElementById('loading-screen').innerHTML = `
           <div class="text-red-500 font-bold mb-2">読み込みエラー</div>
-          <p class="text-slate-500 text-sm text-center px-4">GASのURLやネットワーク設定を確認してください。<br>プレビュー環境の場合はアクセス権限を確認してください。</p>
+          <p class="text-slate-500 text-sm text-center px-4">通信環境やGASのURLを確認してください。</p>
         `;
       }
     }
 
     // --- データ管理ロジック ---
-
-    // 進捗（◯△×）の読み込み
     function loadProgress() {
       const saved = localStorage.getItem(STORAGE_KEY);
       return saved ? JSON.parse(saved) : {};
     }
 
-    // 進捗の保存
     function saveProgress(word, status) {
       const progress = loadProgress();
-      progress[word] = status; // 状態: 'circle', 'triangle', 'cross', または 'none'(削除)
+      progress[word] = status; // 'double-circle', 'circle', 'triangle', 'cross', 'none'
       if (status === 'none') delete progress[word];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
     }
 
-    // 特定のPartの単語リストを取得
     function getWordsForPart(partIndex) {
       const start = partIndex * WORDS_PER_PART;
       return globalWords.slice(start, start + WORDS_PER_PART);
     }
 
     // --- 画面レンダリング ---
-
-    // 画面切り替えユーティリティ
     function showScreen(screenId) {
       document.querySelectorAll('.screen').forEach(el => el.classList.add('hidden'));
       document.getElementById(screenId).classList.remove('hidden');
-      
-      // 修正箇所: 'home' ではなく 'home-screen' を指定
       if (screenId === 'home-screen') renderHome();
     }
 
-    // ホーム画面（Part一覧）の生成
+    // ホーム画面（Part一覧）
     function renderHome() {
       const listContainer = document.getElementById('part-list');
       listContainer.innerHTML = '';
       const progressData = loadProgress();
-      
       const totalParts = Math.ceil(globalWords.length / WORDS_PER_PART);
 
       for (let i = 0; i < totalParts; i++) {
         const partWords = getWordsForPart(i);
         if (partWords.length === 0) continue;
 
-        // Part内の「◯」の数を計算
-        let circleCount = 0;
+        // ◎と◯を「覚えた」としてカウント
+        let learnedCount = 0;
         partWords.forEach(w => {
-          if (progressData[w.word] === 'circle') circleCount++;
+          if (progressData[w.word] === 'circle' || progressData[w.word] === 'double-circle') learnedCount++;
         });
-        const percentage = Math.round((circleCount / partWords.length) * 100);
+        const percentage = Math.round((learnedCount / partWords.length) * 100);
 
         const startNum = i * WORDS_PER_PART + 1;
         const endNum = startNum + partWords.length - 1;
@@ -204,18 +243,13 @@
 
         btn.innerHTML = `
           <div class="text-left">
-            <h3 class="font-bold text-slate-700 text-lg group-hover:text-blue-600 transition-colors">Part ${i + 1}</h3>
+            <h3 class="font-bold text-slate-700 text-lg group-hover:text-blue-600">Part ${i + 1}</h3>
             <p class="text-xs text-slate-400 mt-1">No. ${startNum} - ${endNum}</p>
           </div>
           <div class="flex items-center gap-3">
             <div class="text-right">
-              <div class="text-sm font-bold ${percentage === 100 ? 'text-emerald-500' : 'text-blue-500'}">${percentage}%</div>
-              <div class="text-[10px] text-slate-400">覚えた！</div>
-            </div>
-            <div class="w-12 h-12 rounded-full border-4 ${percentage === 100 ? 'border-emerald-500' : 'border-slate-100'} flex items-center justify-center relative overflow-hidden bg-slate-50">
-              <!-- 円グラフ風の塗りつぶし (CSSのみで簡易表現) -->
-              <div class="absolute bottom-0 left-0 right-0 bg-blue-500 opacity-20" style="height: ${percentage}%;"></div>
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400 relative z-10 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+              <div class="text-sm font-bold ${percentage === 100 ? 'text-purple-500' : 'text-blue-500'}">${percentage}%</div>
+              <div class="text-[10px] text-slate-400">覚えた!</div>
             </div>
           </div>
         `;
@@ -223,7 +257,6 @@
       }
     }
 
-    // リスト画面を開く
     function openPartList(partIndex) {
       currentPartIndex = partIndex;
       document.getElementById('list-title').textContent = `Part ${partIndex + 1}`;
@@ -231,7 +264,7 @@
       showScreen('list-screen');
     }
 
-    // 単語リスト画面の生成
+    // 単語リスト画面（1行コンパクト表示）
     function renderWordList() {
       const container = document.getElementById('word-list');
       container.innerHTML = '';
@@ -244,64 +277,57 @@
         return status === 'triangle' || status === 'cross';
       });
       const startBtn = document.getElementById('start-quiz-btn');
-      if (targetsForQuiz.length > 0) {
-        startBtn.disabled = false;
-        startBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /></svg>練習問題 (${targetsForQuiz.length}問)`;
-      } else {
-        startBtn.disabled = true;
-        startBtn.innerHTML = `練習問題 (△/×がありません)`;
-      }
+      startBtn.disabled = targetsForQuiz.length === 0;
+      startBtn.innerHTML = targetsForQuiz.length > 0 ? `✍️ 練習 (${targetsForQuiz.length}問)` : `✍️ 練習 (対象なし)`;
 
       partWords.forEach((wordObj, index) => {
         const currentStatus = progressData[wordObj.word] || 'none';
+        const globalIndex = currentPartIndex * WORDS_PER_PART + index + 1;
+        const escapedWord = wordObj.word.replace(/'/g, "\\'");
         
-        const card = document.createElement('div');
-        card.className = "bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3";
+        const row = document.createElement('div');
+        row.className = "list-row hover:bg-blue-50 transition-colors";
         
-        // ◯△×を切り替える関数（即時実行関数でスコープを閉じ込める）
-        const setStatus = (statusStr) => {
-          // 同じボタンを押したら解除（none）にする
-          const newStatus = currentStatus === statusStr ? 'none' : statusStr;
-          saveProgress(wordObj.word, newStatus);
-          renderWordList(); // 再描画してUIを更新
+        // 4種類のステータスボタン生成
+        const createBtn = (mark, statusVal, colorClass, selectedClass) => {
+          const isSelected = currentStatus === statusVal;
+          const baseClass = "status-btn w-7 h-7 flex items-center justify-center rounded border font-bold text-xs transition-colors shrink-0";
+          const classes = isSelected ? `${baseClass} ${selectedClass}` : `${baseClass} border-slate-200 ${colorClass}`;
+          return `<button onclick="updateStatus('${escapedWord}', '${statusVal}')" class="${classes}">${mark}</button>`;
         };
 
-        // ボタンの生成ロジック
-        const btnClass = "status-btn flex-1 py-2 rounded-lg border border-slate-200 font-bold text-sm flex justify-center items-center transition-colors";
-        
-        card.innerHTML = `
-          <div class="flex-1">
-            <div class="text-xs text-slate-400 mb-1">No. ${currentPartIndex * WORDS_PER_PART + index + 1}</div>
-            <div class="text-lg font-bold text-slate-800">${wordObj.word}</div>
-            <div class="text-sm text-slate-600">${wordObj.meaning}</div>
+        row.innerHTML = `
+          <div class="flex items-center gap-2 overflow-hidden flex-1 pl-1">
+            <span class="text-[10px] text-slate-400 w-5 shrink-0 text-right">${globalIndex}</span>
+            <button onclick="speakWord('${escapedWord}')" class="text-blue-500 hover:text-blue-700 bg-blue-100 rounded-full w-6 h-6 flex items-center justify-center shrink-0">🔊</button>
+            <span class="font-bold text-slate-800 text-sm sm:text-base shrink-0">${wordObj.word}</span>
+            <span class="text-xs text-slate-500 truncate ml-1">${wordObj.meaning}</span>
           </div>
-          <div class="flex gap-2 sm:w-48">
-            <button onclick="updateStatus('${wordObj.word.replace(/'/g, "\\'")}', 'circle')" class="${btnClass} ${currentStatus === 'circle' ? 'selected-circle' : 'text-blue-500 hover:bg-blue-50'}">◯</button>
-            <button onclick="updateStatus('${wordObj.word.replace(/'/g, "\\'")}', 'triangle')" class="${btnClass} ${currentStatus === 'triangle' ? 'selected-triangle' : 'text-yellow-500 hover:bg-yellow-50'}">△</button>
-            <button onclick="updateStatus('${wordObj.word.replace(/'/g, "\\'")}', 'cross')" class="${btnClass} ${currentStatus === 'cross' ? 'selected-cross' : 'text-red-500 hover:bg-red-50'}">×</button>
+          <div class="flex gap-1 shrink-0 pr-1">
+            ${createBtn('◎', 'double-circle', 'text-purple-500 hover:bg-purple-50', 'selected-double-circle')}
+            ${createBtn('◯', 'circle', 'text-blue-500 hover:bg-blue-50', 'selected-circle')}
+            ${createBtn('△', 'triangle', 'text-yellow-500 hover:bg-yellow-50', 'selected-triangle')}
+            ${createBtn('×', 'cross', 'text-red-500 hover:bg-red-50', 'selected-cross')}
           </div>
         `;
-        container.appendChild(card);
+        container.appendChild(row);
       });
     }
 
-    // グローバルから呼べるステータス更新関数
+    // ステータス更新
     function updateStatus(word, newStatus) {
       const progress = loadProgress();
       const current = progress[word] || 'none';
       const finalStatus = current === newStatus ? 'none' : newStatus;
       saveProgress(word, finalStatus);
-      renderWordList(); // リストを再描画
+      renderWordList();
     }
 
-
     // --- クイズ（練習問題）ロジック ---
-
     function startQuiz() {
       const partWords = getWordsForPart(currentPartIndex);
       const progressData = loadProgress();
       
-      // △か×の単語を抽出
       let targets = partWords.filter(w => {
         const status = progressData[w.word];
         return status === 'triangle' || status === 'cross';
@@ -309,7 +335,6 @@
 
       if (targets.length === 0) return;
 
-      // ランダムにシャッフルして最大10問取り出す
       targets.sort(() => Math.random() - 0.5);
       quizQueue = targets.slice(0, QUIZ_COUNT);
       currentQuizIndex = 0;
@@ -323,17 +348,14 @@
       document.getElementById('quiz-progress').textContent = `${currentQuizIndex + 1} / ${quizQueue.length}`;
       document.getElementById('quiz-word').textContent = question.word;
 
-      // 選択肢の生成（正解1つ + 不正解3つ）
+      // 自動で発音を流す
+      setTimeout(() => speakWord(question.word), 300);
+
       const options = new Set();
-      options.add(question.meaning); // 正解を追加
-
-      // 不正解を全単語からランダムに選ぶ
+      options.add(question.meaning);
       while (options.size < 4) {
-        const randomWord = globalWords[Math.floor(Math.random() * globalWords.length)];
-        options.add(randomWord.meaning);
+        options.add(globalWords[Math.floor(Math.random() * globalWords.length)].meaning);
       }
-
-      // 選択肢をシャッフル
       const shuffledOptions = Array.from(options).sort(() => Math.random() - 0.5);
 
       const optionsContainer = document.getElementById('quiz-options');
@@ -341,72 +363,161 @@
 
       shuffledOptions.forEach(opt => {
         const btn = document.createElement('button');
-        btn.className = "w-full bg-white hover:bg-blue-50 text-slate-700 font-bold py-4 px-6 rounded-xl shadow-sm border border-slate-200 transition-colors text-lg text-left";
+        btn.className = "w-full bg-white hover:bg-blue-50 text-slate-700 font-bold py-4 px-6 rounded-xl shadow-sm border border-slate-200 transition-colors text-base sm:text-lg text-left";
         btn.textContent = opt;
-        
         btn.onclick = () => handleQuizAnswer(opt === question.meaning, question.word, btn);
         optionsContainer.appendChild(btn);
       });
     }
 
-    // 回答を処理する
     function handleQuizAnswer(isCorrect, word, clickedBtn) {
-      // 連続クリック防止
-      const buttons = document.querySelectorAll('#quiz-options button');
-      buttons.forEach(b => b.disabled = true);
-
+      document.querySelectorAll('#quiz-options button').forEach(b => b.disabled = true);
       const feedbackEl = document.getElementById('quiz-feedback');
       const iconEl = document.getElementById('feedback-icon');
 
       if (isCorrect) {
-        // 正解の処理
         clickedBtn.classList.replace('bg-white', 'bg-emerald-500');
         clickedBtn.classList.replace('text-slate-700', 'text-white');
-        clickedBtn.classList.replace('border-slate-200', 'border-emerald-500');
-        
         iconEl.textContent = '◯';
         iconEl.className = 'text-9xl font-bold drop-shadow-lg text-emerald-500';
         
-        // リストのチェックを「◯」に更新！
-        saveProgress(word, 'circle');
+        // 正解時の昇格ロジック (× -> △ -> ◯ -> ◎)
+        const progress = loadProgress();
+        const current = progress[word] || 'none';
+        let nextStatus = 'circle'; // デフォルト
+        if (current === 'cross') nextStatus = 'triangle';
+        else if (current === 'triangle') nextStatus = 'circle';
+        else if (current === 'circle') nextStatus = 'double-circle';
+        else if (current === 'double-circle') nextStatus = 'double-circle';
+        saveProgress(word, nextStatus);
       } else {
-        // 不正解の処理
         clickedBtn.classList.replace('bg-white', 'bg-red-500');
         clickedBtn.classList.replace('text-slate-700', 'text-white');
-        clickedBtn.classList.replace('border-slate-200', 'border-red-500');
-        
         iconEl.textContent = '×';
         iconEl.className = 'text-9xl font-bold drop-shadow-lg text-red-500';
       }
 
-      // フィードバックアニメーション表示
       feedbackEl.classList.remove('opacity-0');
       
-      // 1秒後に次の問題へ
       setTimeout(() => {
         feedbackEl.classList.add('opacity-0');
         currentQuizIndex++;
-        
         if (currentQuizIndex < quizQueue.length) {
           renderQuiz();
         } else {
-          endQuiz(true);
+          endQuiz();
         }
       }, 1000);
     }
 
-    // クイズを終了してリストに戻る
-    function endQuiz(completed = false) {
-      if (completed) {
-        // 完了通知
-        const toast = document.createElement('div');
-        toast.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-emerald-600 text-white px-6 py-3 rounded-full shadow-lg fade-in z-50 text-sm font-bold';
-        toast.textContent = '練習問題クリア！リストに戻ります。';
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
+    function endQuiz() {
+      renderWordList();
+      showScreen('list-screen');
+    }
+
+    // --- 対戦モード (VS MODE) ロジック ---
+    let vsQueue = [];
+    let vsCurrentIndex = 0;
+    let p1Score = 0;
+    let p2Score = 0;
+    let vsActive = false;
+
+    function startVsMode() {
+      const partWords = getWordsForPart(currentPartIndex);
+      if (partWords.length < 5) {
+        alert("単語が少なすぎます。"); return;
       }
+      let shuffled = [...partWords].sort(() => Math.random() - 0.5);
+      vsQueue = shuffled.slice(0, 5);
+      vsCurrentIndex = 0;
+      p1Score = 0;
+      p2Score = 0;
       
-      renderWordList(); // 更新された◯△×を反映するため再描画
+      document.getElementById('p1-score').textContent = p1Score;
+      document.getElementById('p2-score').textContent = p2Score;
+      
+      showScreen('vs-screen');
+      renderVsQuestion();
+    }
+
+    function renderVsQuestion() {
+      vsActive = true;
+      const question = vsQueue[vsCurrentIndex];
+
+      // 共通の選択肢を生成
+      const options = new Set();
+      options.add(question.meaning);
+      while(options.size < 4) {
+          options.add(globalWords[Math.floor(Math.random() * globalWords.length)].meaning);
+      }
+      const shuffledOptions = Array.from(options).sort(() => Math.random() - 0.5);
+
+      // P1 (下側) レンダリング
+      const p1Container = document.getElementById('p1-options');
+      p1Container.innerHTML = '';
+      shuffledOptions.forEach(opt => {
+          const btn = document.createElement('button');
+          btn.className = "bg-white text-blue-900 font-bold py-6 px-2 rounded-xl shadow border-2 border-blue-200 active:bg-blue-200 text-sm sm:text-base";
+          btn.textContent = opt;
+          btn.onclick = () => handleVsAnswer(1, opt === question.meaning, btn);
+          p1Container.appendChild(btn);
+      });
+
+      // P2 (上側) レンダリング
+      const p2Container = document.getElementById('p2-options');
+      p2Container.innerHTML = '';
+      shuffledOptions.forEach(opt => {
+          const btn = document.createElement('button');
+          btn.className = "bg-white text-red-900 font-bold py-6 px-2 rounded-xl shadow border-2 border-red-200 active:bg-red-200 text-sm sm:text-base";
+          btn.textContent = opt;
+          btn.onclick = () => handleVsAnswer(2, opt === question.meaning, btn);
+          p2Container.appendChild(btn);
+      });
+
+      // 自動発音
+      setTimeout(() => speakWord(question.word), 600);
+    }
+
+    function handleVsAnswer(player, isCorrect, btn) {
+      if (!vsActive) return;
+
+      if (isCorrect) {
+          vsActive = false; // 先押し判定！
+          btn.classList.replace('bg-white', 'bg-green-500');
+          btn.classList.add('text-white');
+          
+          if (player === 1) {
+            p1Score++;
+            document.getElementById('p1-score').textContent = p1Score;
+          } else {
+            p2Score++;
+            document.getElementById('p2-score').textContent = p2Score;
+          }
+
+          setTimeout(() => {
+              vsCurrentIndex++;
+              if (vsCurrentIndex < 5) {
+                  renderVsQuestion();
+              } else {
+                  finishVsMode();
+              }
+          }, 1200);
+      } else {
+          // お手つき処理（ボタンをグレーアウトして押せなくする）
+          btn.classList.replace('bg-white', 'bg-slate-300');
+          btn.classList.add('opacity-50');
+          btn.disabled = true;
+      }
+    }
+
+    function finishVsMode() {
+      let msg = p1Score > p2Score ? "🔵 Player 1 (下) の勝ち！" : (p2Score > p1Score ? "🔴 Player 2 (上) の勝ち！" : "🤝 引き分け！");
+      alert(`試合終了！\n${msg}\n\nP1(下): ${p1Score} - P2(上): ${p2Score}`);
+      endVsMode();
+    }
+
+    function endVsMode() {
+      renderWordList();
       showScreen('list-screen');
     }
 
