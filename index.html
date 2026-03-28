@@ -46,7 +46,8 @@
     <!-- 画面2: リスト（単語一覧）画面 -->
     <div id="list-screen" class="screen hidden flex flex-col h-full fade-in">
       <div class="bg-blue-600 text-white p-4 flex items-center justify-between shadow-md z-10">
-        <button onclick="showScreen('home')" class="p-2 hover:bg-blue-700 rounded-lg transition-colors">
+        <!-- 修正箇所: 'home' ではなく 'home-screen' を指定 -->
+        <button onclick="showScreen('home-screen')" class="p-2 hover:bg-blue-700 rounded-lg transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
         </button>
         <h2 id="list-title" class="text-lg font-bold">Part X</h2>
@@ -110,7 +111,10 @@
     async function initApp() {
       try {
         const response = await fetch(GAS_URL);
-        const data = await response.json();
+        const rawData = await response.json();
+        
+        // 改善点：スプレッドシートの空白行が混ざった場合にエラーにならないよう除外する
+        const data = rawData.filter(item => item && item.word && item.word.toString().trim() !== '');
         
         // GASのデータが少ない場合（テスト時など）は、1200個になるようにダミーデータを追加
         if (data.length < 100) {
@@ -126,7 +130,9 @@
         
         renderHome();
         document.getElementById('loading-screen').classList.add('hidden');
-        showScreen('home');
+        
+        // 修正箇所: 'home' ではなく 'home-screen' を指定
+        showScreen('home-screen');
         
       } catch (error) {
         console.error("データの読み込みに失敗しました:", error);
@@ -166,8 +172,8 @@
       document.querySelectorAll('.screen').forEach(el => el.classList.add('hidden'));
       document.getElementById(screenId).classList.remove('hidden');
       
-      // ホームに戻った時に進捗を再計算して表示を更新する
-      if (screenId === 'home') renderHome();
+      // 修正箇所: 'home' ではなく 'home-screen' を指定
+      if (screenId === 'home-screen') renderHome();
     }
 
     // ホーム画面（Part一覧）の生成
